@@ -1,26 +1,54 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
+using System.Collections.Generic; 
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
 public class GridManager : Manager<GridManager>
 {  
-    public GameObject terrainGrid;
+    public GameObject[] terrainGrids;
 
-    protected Graph graph;
+    public Dictionary<string, int> terrainNameAndIndexes = new Dictionary<string, int>();
+
+    private Graph[] graphs;
+
+    public Graph[] Graphs => graphs;
+
+    private int prevGraph;
+
+    [SerializeField]
+    private int currentGraph;
+    public int CurrentGraph{
+        get{
+            return currentGraph;
+        }
+        set{
+            prevGraph = currentGraph;
+            currentGraph = value;
+            if(graphs[currentGraph] == null){
+                InitializeGraph(value);
+            }
+        }
+    }
+
     protected Dictionary<Team, int> startPositionPerTeam;
     
-    List<Tile> allTiles = new List<Tile>();
+    
     protected void Awake()
     {
         base.Awake();
-        allTiles = terrainGrid.GetComponentsInChildren<Tile>().ToList();
-        
-        InitializeGraph();
+
+        for(int i = 0; i < terrainGrids.Length; i++){
+            terrainNameAndIndexes.Add(terrainGrids[i].name, i);
+        }
+
+        graphs = new Graph[terrainGrids.Length];
+
+        CurrentGraph = 0;
+
         startPositionPerTeam = new Dictionary<Team, int>();
         startPositionPerTeam.Add(Team.Team1, 0);
-        startPositionPerTeam.Add(Team.Team2, graph.Nodes.Count -1);
+        startPositionPerTeam.Add(Team.Team2, graphs[currentGraph].Nodes.Count -1);
     }
 
     public Node GetFreeNode(Team forTeam)
@@ -28,12 +56,12 @@ public class GridManager : Manager<GridManager>
         int startIndex = startPositionPerTeam[forTeam];
         int currentIndex = startIndex;
 
-        while(graph.Nodes[currentIndex].IsOccupied)
+        while(graphs[currentGraph].Nodes[currentIndex].IsOccupied)
         {
             if(startIndex == 0)
             {
                 currentIndex++;
-                if (currentIndex == graph.Nodes.Count)
+                if (currentIndex == graphs[currentGraph].Nodes.Count)
                     return null;
             }
             else
@@ -44,22 +72,22 @@ public class GridManager : Manager<GridManager>
             }
             
         }
-        return graph.Nodes[currentIndex];
+        return graphs[currentGraph].Nodes[currentIndex];
     }
 
     public List<Node> GetPath(Node from, Node to)
     {
-        return graph.GetShortestPath(from, to);
+        return graphs[currentGraph].GetShortestPath(from, to);
     }
 
     public List<Node> GetNodesCloseTo(Node to)
     {
-        return graph.Neighbors(to);
+        return graphs[currentGraph].Neighbors(to);
     }
 
     public Node GetNodeForTile(Tile t)
     {
-        var allNodes = graph.Nodes;
+        var allNodes = graphs[currentGraph].Nodes;
 
         for (int i = 0; i < allNodes.Count; i++)
         {
@@ -71,25 +99,26 @@ public class GridManager : Manager<GridManager>
 
         return null;
     }
-    
-    private void InitializeGraph()
+
+    private void InitializeGraph(int index)
     {
-        graph = new Graph();
+        var allTiles = terrainGrids[index].GetComponentsInChildren<Tile>().ToList();
+        graphs[index] = new Graph();
 
         for (int i = 0; i < allTiles.Count; i++)
         {
             Vector3 place = allTiles[i].transform.position;
-            graph.AddNode(place);
+            graphs[index].AddNode(place);
         }
 
-        var allNodes = graph.Nodes;
+        var allNodes = graphs[index].Nodes;
         foreach (Node from in allNodes)
         {
             foreach (Node to in allNodes)
             {
                 if (Vector3.Distance(from.worldPosition, to.worldPosition) < 1f && from != to)
                 {
-                    graph.AddEdge(from, to);
+                    graphs[index].AddEdge(from, to);
                 }
             }
         }
@@ -100,10 +129,11 @@ public class GridManager : Manager<GridManager>
 
     private void OnDrawGizmos()
     {
-        if (graph == null)
+        
+        if (graphs[currentGraph] == null)
             return;
 
-        var allEdges = graph.Edges;
+        var allEdges = graphs[currentGraph].Edges;
         if (allEdges == null)
             return;
 
@@ -112,7 +142,7 @@ public class GridManager : Manager<GridManager>
             Debug.DrawLine(e.from.worldPosition, e.to.worldPosition, Color.black, 100);
         }
 
-        var allNodes = graph.Nodes;
+        var allNodes = graphs[currentGraph].Nodes;
         if (allNodes == null)
             return;
 
@@ -126,7 +156,7 @@ public class GridManager : Manager<GridManager>
         if (fromIndex >= allNodes.Count || toIndex >= allNodes.Count)
             return;
 
-        List<Node> path = graph.GetShortestPath(allNodes[fromIndex], allNodes[toIndex]);
+        List<Node> path = graphs[currentGraph].GetShortestPath(allNodes[fromIndex], allNodes[toIndex]);
         if (path.Count > 1)
         {
             for (int i = 1; i < path.Count; i++)

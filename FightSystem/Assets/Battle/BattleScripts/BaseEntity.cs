@@ -33,13 +33,19 @@ public class BaseEntity : MonoBehaviour
     protected bool canAttack = true;
     protected float waitBetweenAttack;
 
+    protected Vector2 walkStartPos;
+    protected Vector2 walkEndPos;
+
+    protected static float roundEndWalkDuration = 2f;
+    protected float walkDuration = 0;
+
+    protected Node roundStartNode;
+
     public void Setup(Team team, Node currentNode)
     {
         myTeam = team;
-        if (myTeam == Team.Team2)
-        {
-            spriteRender.flipX = true;
-        }
+
+        spriteRender.flipX = myTeam == Team.Team2;
 
         this.currentNode = currentNode;
         transform.position = currentNode.worldPosition;
@@ -54,11 +60,62 @@ public class BaseEntity : MonoBehaviour
         GameManager.Instance.OnRoundStart += OnRoundStart;
         GameManager.Instance.OnRoundEnd += OnRoundEnd;
         GameManager.Instance.OnUnitDied += OnUnitDied;
+        GameManager.Instance.OnLevelChanged += OnLevelChanged;
     }
 
-    protected virtual void OnRoundStart() { }
-    protected virtual void OnRoundEnd() { }
+    public void RemoveListeners(){
+        GameManager.Instance.OnRoundStart -= OnRoundStart;
+        GameManager.Instance.OnRoundEnd -= OnRoundEnd;
+        GameManager.Instance.OnUnitDied -= OnUnitDied;
+        GameManager.Instance.OnLevelChanged -= OnLevelChanged;
+    }
+
+    protected void WalkToStart()
+    {
+        if(!GameManager.Instance.IsGameStarted){
+            if(walkDuration > 0)
+            {
+                walkDuration -= Time.deltaTime * 1 / roundEndWalkDuration;
+                transform.position = Vector3.Lerp(walkEndPos, walkStartPos, walkDuration / 2);
+
+                spriteRender.flipX = walkEndPos.x - walkStartPos.x > 0 ? false : true;
+            }
+            else
+            {
+                spriteRender.flipX = myTeam == Team.Team2;
+            }
+        }
+    }
+
+    protected virtual void OnLevelChanged(int prelevel, int currlevel){
+        walkStartPos = this.transform.position;
+        var nextNode = GridManager.Instance.Graphs[currlevel].Nodes[currentNode.index];
+        walkEndPos = nextNode.worldPosition;
+        nextNode.SetOccupied(true);
+        currentNode = nextNode;
+        walkDuration = 2;
+    }
+
+    protected virtual void OnRoundStart() 
+    { 
+        roundStartNode = currentNode;
+        FindTarget();
+    }
+
+    protected virtual void OnRoundEnd(Team team) 
+    { 
+        moving = false;
+        currentNode = roundStartNode;
+        destination = null;
+        walkEndPos = roundStartNode.worldPosition;
+        walkStartPos = this.transform.position;
+        walkDuration = roundEndWalkDuration;
+        currentNode.SetOccupied(true);
+    }
+
     protected virtual void OnUnitDied(BaseEntity diedUnity) { }
+
+
 
     protected void FindTarget()
     {
@@ -123,7 +180,7 @@ public class BaseEntity : MonoBehaviour
             path[1].SetOccupied(true);
             destination = path[1];            
         }
-
+        
         moving = !MoveTowards(destination);
         if(!moving)
         {
@@ -148,6 +205,7 @@ public class BaseEntity : MonoBehaviour
             dead = true;
             currentNode.SetOccupied(false);
             GameManager.Instance.UnitDead(this);
+            RemoveListeners();
         }
     }
 
