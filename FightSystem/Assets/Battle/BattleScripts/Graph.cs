@@ -17,12 +17,6 @@ public class Graph
         edges = new List<Edge>();
     }
 
-    public void ClearOccopied(){
-        for(int i = 0; i < nodes.Count; i++){
-            nodes[i].SetOccupied(false);
-        }
-    }
-
     public bool Adjacent(Node from, Node to)
     {
         foreach(Edge e in edges)

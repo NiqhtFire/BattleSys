@@ -46,12 +46,9 @@ public class Draggable : MonoBehaviour
         this.transform.position = newPosition;
 
         Tile tileUnder = GetTileUnder();
-
-
-        if (tileUnder != null && GridManager.Instance.GetNodeForTile(tileUnder).index < 24)
+        if (tileUnder != null)
         {
-            bool tileIsOnCurrentGraph = GridManager.Instance.terrainNameAndIndexes[tileUnder.transform.parent.name] == GridManager.Instance.CurrentGraph;
-            tileUnder.SetHighlight(tileIsOnCurrentGraph, !GridManager.Instance.GetNodeForTile(tileUnder).IsOccupied && tileIsOnCurrentGraph);
+            tileUnder.SetHighlight(true, !GridManager.Instance.GetNodeForTile(tileUnder).IsOccupied);
 
             if (previousTile != null && tileUnder != previousTile)
             {
@@ -60,8 +57,6 @@ public class Draggable : MonoBehaviour
             }
 
             previousTile = tileUnder;
-        }else if(previousTile != null){
-            previousTile.SetHighlight(false, false);
         }
     }
 
@@ -95,14 +90,12 @@ public class Draggable : MonoBehaviour
         Tile t = GetTileUnder();
         if (t != null)
         {
-            bool tileIsOnCurrentGraph = GridManager.Instance.terrainNameAndIndexes[t.transform.parent.name] == GridManager.Instance.CurrentGraph;
-
             //It's a tile!
             BaseEntity thisEntity = GetComponent<BaseEntity>();
             Node candidateNode = GridManager.Instance.GetNodeForTile(t);
-            if (candidateNode != null && thisEntity != null && tileIsOnCurrentGraph)
+            if (candidateNode != null && thisEntity != null)
             {
-                if (!candidateNode.IsOccupied && candidateNode.index < 24)
+                if (!candidateNode.IsOccupied)
                 {
                     //Let's move this unity to that node
                     thisEntity.CurrentNode.SetOccupied(false);
@@ -124,7 +117,7 @@ public class Draggable : MonoBehaviour
         RaycastHit2D hit =
             Physics2D.Raycast(cam.ScreenToWorldPoint(Input.mousePosition), Vector2.zero, 100, releaseMask);
 
-        if (hit.collider != null)
+        if (hit != null && hit.collider != null)
         {
             //Released over something!
             Tile t = hit.collider.GetComponent<Tile>();

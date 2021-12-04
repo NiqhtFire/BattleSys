@@ -4,13 +4,13 @@ using UnityEngine;
 
 public class MeleeEntity : BaseEntity
 {
+    protected override void OnRoundStart()
+    {
+        FindTarget();
+    }
+
     public void Update()
     {
-        if(!GameManager.Instance.IsGameStarted)
-        {
-            base.WalkToStart();
-            return;
-        }
         if (!HasEnemy)
         {
             FindTarget();
